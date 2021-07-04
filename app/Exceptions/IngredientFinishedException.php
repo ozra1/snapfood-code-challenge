@@ -4,7 +4,9 @@
 namespace App\Exceptions;
 
 
-class IngredientFinishedException
+use Exception;
+
+class IngredientFinishedException extends Exception
 {
 
 }

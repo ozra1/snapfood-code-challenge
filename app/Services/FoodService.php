@@ -4,33 +4,56 @@
 namespace App\Services;
 
 
-use App\Models\Food;
-use App\Repositories\FoodRepository;
-use Carbon\Carbon;
-use Illuminate\Database\Query\Builder;
+use App\DTO\OrderDTO;
+use App\Exceptions\IngredientFinishedException;
+use App\Repositories\Eloquent\FoodRepository;
+use App\Repositories\Eloquent\IngredientRepository;
+use App\Repositories\Eloquent\OrderRepository;
+use App\Repositories\FoodRepositoryInterface;
+use App\Repositories\IngredientRepositoryInterface;
+use App\Repositories\OrderRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 
 class FoodService
 {
-    private FoodRepository $foodRepository;
+    private FoodRepositoryInterface $foodRepository;
+    private IngredientRepositoryInterface $ingredientRepository;
+    private OrderRepositoryInterface $orderRepository;
 
-    public function __construct(FoodRepository $foodRepository)
+    public function __construct(FoodRepositoryInterface $foodRepository, IngredientRepositoryInterface $ingredientRepository, OrderRepositoryInterface $orderRepository)
     {
         $this->foodRepository = $foodRepository;
+        $this->ingredientRepository = $ingredientRepository;
+        $this->orderRepository = $orderRepository;
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function getMenu()
     {
-        return Food::query()->whereHas('ingredients', function (Builder $query) {
-            $query->where('stock', '>', 0);
-            $query->whereDate('expires_st', '>=', Carbon::now()->timestamp);
-            $query->orderBy('best_before');
-        })->get();
+        return $this->foodRepository->getMenu();
     }
 
-    public function order(Food $food)
+    /**
+     * @param OrderDTO $dto
+     * @throws IngredientFinishedException
+     */
+    public function order(OrderDTO $dto)
     {
-        $finishedIngredients = $this->foodRepository->getFinishedCount($foodId);
+        $ingredients = $this->ingredientRepository->getByFood($dto->getFoodId());
 
+        foreach ($ingredients as $ingredient) {
+            if ($ingredient->stock == 0) {
+                throw new IngredientFinishedException();
+            }
+        }
+
+        DB::transaction(function () use ($dto, $ingredients) {
+
+            $this->orderRepository->create(['food_id' => $dto->getFoodId()]);
+
+            $this->ingredientRepository->updateStock($ingredients->get('id')->toArray());
+        });
     }
 }

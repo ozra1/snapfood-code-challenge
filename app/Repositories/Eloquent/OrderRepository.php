@@ -1,22 +1,22 @@
 <?php
 
 
-namespace App\Repositories;
+namespace App\Repositories\Eloquent;
 
 
 
 use App\Models\Order;
-use Illuminate\Database\Eloquent\Model;
+use App\Repositories\OrderRepositoryInterface;
 
-class OrderRepository implements EloquentRepositoryInterface
+class OrderRepository extends BaseRepository implements OrderRepositoryInterface
 {
-    public static function getModel(): Model
+    /**
+     * OrderRepository constructor.
+     *
+     * @param Order $model
+     */
+    public function __construct(Order $model)
     {
-        return new Order();
-    }
-
-    public function create(string $foodId)
-    {
-
+        parent::__construct($model);
     }
 }
